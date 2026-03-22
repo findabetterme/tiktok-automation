@@ -1,0 +1,85 @@
+# GitHub Actions スケジューラー (完全無料)
+# 毎日ベストタイムに自動実行: スクリプト生成 → 動画作成 → TikTokアップロード
+#
+# 必要なSecrets (Settings > Secrets and variables > Actions):
+#   GEMINI_API_KEY
+#   TIKTOK_ACCESS_TOKEN
+#   TIKTOK_CLIENT_KEY
+#   TIKTOK_CLIENT_SECRET
+#   TIKTOK_NICHE
+#   TIKTOK_TONE
+
+name: TikTok Auto Post
+
+on:
+  schedule:
+    # 毎日 18:00 UTC (日本時間 翌3:00) に実行
+    # best_posting_hours に合わせて変更してください
+    - cron: "0 18 * * *"
+  workflow_dispatch:   # 手動実行ボタン
+    inputs:
+      topic:
+        description: "動画のトピック (任意)"
+        required: false
+        default: ""
+      dry_run:
+        description: "ドライラン (実際にアップロードしない)"
+        type: boolean
+        default: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install system font
+        run: sudo apt-get install -y fonts-liberation
+
+      - name: Create .env
+        run: |
+          {
+            echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}"
+            echo "TIKTOK_ACCESS_TOKEN=${{ secrets.TIKTOK_ACCESS_TOKEN }}"
+            echo "TIKTOK_CLIENT_KEY=${{ secrets.TIKTOK_CLIENT_KEY }}"
+            echo "TIKTOK_CLIENT_SECRET=${{ secrets.TIKTOK_CLIENT_SECRET }}"
+            echo "TIKTOK_NICHE=${{ secrets.TIKTOK_NICHE }}"
+            echo "TIKTOK_TONE=${{ secrets.TIKTOK_TONE }}"
+          } > .env
+
+      - name: Generate script
+        run: |
+          TOPIC="${{ github.event.inputs.topic }}"
+          python3 main.py generate ${TOPIC:+--topic "$TOPIC"}
+
+      - name: Create video
+        run: python3 main.py create-video
+
+      - name: Upload to TikTok
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: python3 main.py upload output.mp4
+
+      - name: Dry run (skip upload)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        run: python3 main.py upload output.mp4 --dry-run
+
+      - name: Upload video artifact (for review)
+        uses: actions/upload-artifact@v4
+        with:
+          name: tiktok-video-${{ github.run_number }}
+          path: |
+            output.mp4
+            script_01.json
+          retention-days: 7
