@@ -1,0 +1,18 @@
+name: Get TikTok Access Token
+
+on:
+  workflow_dispatch:
+    inputs:
+      auth_code:
+        description: "TikTok authorization code (from redirect URL ?code=...)"
+        required: true
+
+jobs:
+  exchange-token:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Exchange code for access token
+        run: |
+          curl -s -X POST "https://open.tiktokapis.com/v2/oauth/token/" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "client_key=${{ secrets.TIKTOK_CLIENT_KEY }}&client_secret=${{ secrets.TIKTOK_CLIENT_SECRET }}&code=${{ github.event.inputs.auth_code }}&grant_type=authorization_code&redirect_uri=https://localhost"
