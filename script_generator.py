@@ -44,7 +44,7 @@ def generate_script(
         analytics_summary: analytics.format_analytics_summary() の出力
         topic_hint: 具体的なテーマ（任意）
     """
-    model = genai.GenerativeModel("gemini-2.0-flash")
+    model = genai.GenerativeModel("gemini-1.5-flash")
 
     topic_line = f"\nFocus this video on: {topic_hint}" if topic_hint else ""
 
